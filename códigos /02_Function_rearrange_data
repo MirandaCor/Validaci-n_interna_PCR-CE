@@ -1,0 +1,92 @@
+
+
+library(readxl)
+library(dplyr)
+library(writexl)
+
+# save data direction
+direccion <- "C:/Users/3500_1/3500_results/"
+# read data
+data <- read.csv(paste0(direccion,"combined_data_.csv"))
+# key word for negative sample
+neg <- 'Neg'
+# key word for positive sample
+pos <- '-Pos'
+# key word for sample( dilution)
+ng<- "ng"
+# key word for ladder (precision analysis) 'Ladder' o 'LADDER'
+
+#función separa cada tipo de muetras y reacomoda de manera que pueda ser analizado 
+# Función para procesar y reorganizar datos
+process_data <- function(data, num_allele_columns, filenames) {
+  # Filtrar filas basadas en patrones en Sample.Name
+  neg_rows <- data %>% filter(grepl(neg, Sample.Name))
+  pos_rows <- data[grep(pos, data$Sample.Name), ]
+  sample_rows <- data[grepl(ng, data$Sample.Name), ]
+  ladder_rows <- subset(data, Sample.Name == 'Ladder' | Sample.Name == 'LADDER'| Sample.Name == 'ladder')
+  
+  # Crear una lista que contiene los subconjuntos de datos
+  vector <- list(pos_rows, sample_rows, ladder_rows, neg_rows)
+  vector_names <- c("pos_rows", "sample_rows", "ladder_rows", "neg_rows")
+  
+  # Iterar sobre cada subconjunto de datos
+  for (j in seq_along(vector)) {
+    current_df <- vector[[j]]
+    name <- vector_names[j]
+    
+    rearranged_df <- data.frame() # Data frame vacío para almacenar los datos reorganizados
+    
+    # Iterar sobre cada conjunto de columnas de alelos
+    for (i in 1:num_allele_columns) {
+      # Definir nombres de columnas
+      allele_col <- paste0("Allele.", i)
+      size_col <- paste0("Size.", i)
+      height_col <- paste0("Height.", i)
+      peak_area_col <- paste0("Peak.Area.", i)
+      data_point_col <- paste0("Data.Point.", i)
+      
+      # Verificar si las columnas existen
+      if (all(c(allele_col, size_col, height_col, peak_area_col, data_point_col) %in% colnames(current_df))) {
+        # Convertir la columna de alelos a tipo carácter
+        current_df[[allele_col]] <- as.character(current_df[[allele_col]])
+        
+        # Crear un data frame con las columnas actuales
+        current_set <- data.frame(
+          Sample.Name = current_df$Sample.Name,
+          Marker = current_df$Marker,
+          Dye = current_df$Dye,
+          Analysis.Method = current_df$Analysis.Method,
+          Cap = current_df$Cap,
+          Well = current_df$Well,
+          Panel = current_df$Panel,
+          Allele = current_df[[allele_col]],
+          Size = current_df[[size_col]],
+          Height = current_df[[height_col]],
+          Peak.Area = current_df[[peak_area_col]],
+          Data.Point = current_df[[data_point_col]]
+        )
+        
+        rearranged_df <- bind_rows(rearranged_df, current_set) # Agregar al data frame reorganizado
+        rearranged_df <- rearranged_df[complete.cases(rearranged_df), ] # Eliminar filas incompletas
+      } else {
+        warning(paste("Missing columns in", name, "for Allele", i))
+      }
+    }
+    
+    # Definir el nombre inicial del archivo
+    filename <- paste0(filenames, "rearrange_", name, ".csv")
+    
+    # Verificar si el archivo ya existe y modificar el nombre si es necesario
+    file_number <- 1
+    while (file.exists(filename)) {
+      file_number <- file_number + 1
+      filename <- paste0(filenames, "rearrange_", name, "_", file_number, ".csv")
+    }
+    
+    # Guardar el data frame reorganizado
+    write.csv(rearranged_df, file = filename, row.names = FALSE)
+  }
+}
+# Call the function
+process_data(data, 200,filenames = paste0(direccion,"output_"))
+
