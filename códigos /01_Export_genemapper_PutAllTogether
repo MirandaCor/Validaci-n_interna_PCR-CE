@@ -1,0 +1,30 @@
+library(readxl)
+library(dplyr)
+library(writexl)
+
+
+# Specify the directory containing your CSV files
+folder_path <- "C:/Users/3500_1"
+
+#save location and file name
+output <- "C:/Users/combined_data_.csv"
+
+# Get a list of all CSV files in the folder
+file_list <- list.files(folder_path, pattern = "\\.csv$", full.names = TRUE)
+
+# Initialize an empty data frame to store the combined data
+combined_data <- data.frame()
+
+# Iterate over each file, read it, and append it to the combined data frame
+for (file in file_list) {
+  # Read the CSV file
+  current_data <- read.csv(file)[,1:1020]
+  
+  # Append the data to the combined data frame
+  combined_data <- rbind(combined_data, current_data)
+}
+
+# Write the combined data frame to a new CSV file
+write.csv(combined_data, file = output, row.names = FALSE)
+
+unique(combined_data$)
