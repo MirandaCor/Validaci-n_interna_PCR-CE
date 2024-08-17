@@ -1,0 +1,82 @@
+library(writexl)
+library(ggplot2)
+library(dplyr)
+library(readr)
+library(stringr)
+
+path_save <- 'C:/Users/3500_1/3500_results/'
+
+# Lista de archivos, valores de ua y filtros de Sample.Name
+archivos <- list(
+  list(
+    file_path = paste0(path_save,"gf_sample_ALLELE_PHR.csv"),
+    ua =50, #21,
+    sample_names = c("4.8ng", "2.4ng", "1.2ng", "0.6ng")
+  ),
+  list(
+    file_path = paste0(path_save,"mf_sample_ALLELE_PHR.csv"),
+    ua = 50,#154,
+    sample_names = c("1.2ng", "0.6ng", "0.3ng")
+  ),
+  list(
+    file_path = paste0(path_save,"ngm_sample_ALLELE_PHR.csv"),
+    ua = 50,#78,
+    sample_names = c("1.2ng", "0.6ng", "0.3ng")
+  ),
+  list(
+    file_path = paste0(path_save,"ppy_sample_ALLELE_PHR.csv"),
+    ua = 50,#$61,
+    sample_names = c("1.2ng", "0.6ng", "0.3ng", "0.15ng")
+  ),
+  list(
+    file_path = paste0(path_save,"yfp_sample_ALLELE_PHR.csv"),
+    ua = 50,#39,
+    sample_names = c("1.2ng", "0.6ng", "0.3ng", "0.15ng")
+  )
+)
+
+# Prefijos para los archivos de salida
+prefijos <- c("gf", "mf", "ngm", "ppy", "yfp")
+
+# Función para procesar un solo archivo
+procesar_phr <- function(file_path, ua, sample_names) {
+  # Leer el archivo
+  df <- read_csv(file_path, show_col_types = FALSE)
+  
+  # Filtrar filas según los valores en 'a1_Height', 'a2_Height' y 'Sample.Name'
+  df_filtrado <- df %>%
+    filter(a1_Height >= ua & a2_Height >= ua & str_detect(Sample.Name, paste(sample_names, collapse = "|")))
+  
+  # Calcular estadísticas para 'PHR' por cada 'Marker'
+  stats <- df_filtrado %>%
+    group_by(Marker) %>%
+    summarize(
+      max_PHR = ifelse(length(PHR[!is.na(PHR)]) > 0, max(PHR, na.rm = TRUE), NA),
+      min_PHR = ifelse(length(PHR[!is.na(PHR)]) > 0, min(PHR, na.rm = TRUE), NA),
+      mean_PHR = ifelse(length(PHR[!is.na(PHR)]) > 0, mean(PHR, na.rm = TRUE), NA),
+      sd_PHR = ifelse(length(PHR[!is.na(PHR)]) > 0, sd(PHR, na.rm = TRUE), NA)
+    ) %>%
+    mutate(mean_MINUS_3sd = ifelse(!is.na(mean_PHR) & !is.na(sd_PHR), mean_PHR - (3 * sd_PHR), NA))
+  
+  # Eliminar filas con NA en 'mean_minus_3sd'
+  stats <- stats %>%
+    filter(!is.na(mean_MINUS_3sd))
+  
+  return(stats)
+}
+
+# Iterar sobre cada archivo y valor de ua
+i <- 1
+
+for (archivo_info in archivos) {
+  ua <- archivo_info$ua
+  sample_names <- archivo_info$sample_names
+  resultados <- procesar_phr(archivo_info$file_path, ua, sample_names)
+  
+  # Guardar el resultado en un archivo CSV con el prefijo correspondiente
+  output_file <- paste0(path_save, prefijos[i], "_PHR_CON_UMBRAL.csv")
+  write_csv(resultados, output_file)
+  
+  i <- i + 1
+}
+
