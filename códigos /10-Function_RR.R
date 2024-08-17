@@ -7,6 +7,7 @@ library(stringr)
 library(openxlsx)
 library(tidyr)
 
+# Donde leera los archivos
 path <- "C:/Users/3500_1/3500_results/"
 # Lista de archivos y valores de ua y phr
 archivos <- list(
